@@ -7,6 +7,7 @@
 import imageio
 import os
 import torch
+from time import time
 
 import numpy as np
 import pandas as pd
@@ -115,12 +116,16 @@ def render_img(train_config, img_samples, img_name=None, model_idxs=None):
 
 
 def render_all_imgs(train_config: TrainConfig, subfolder_name="", dataset_name="test"):
+    
     os.makedirs(os.path.join(train_config.logDir, subfolder_name, dataset_name), exist_ok=True)
 
     inference_chunk_size = train_config.config_file.inferenceChunkSize
     data_set, _ = train_config.get_data_set_and_loader(dataset_name)
     saved_full_images = data_set.full_images
     data_set.full_images = True
+
+    start_time = time()
+    print(f'数据量为：{len(data_set)}')
 
     psnrs = []
 
@@ -216,6 +221,9 @@ def render_all_imgs(train_config: TrainConfig, subfolder_name="", dataset_name="
         psnrs_np.append(psnrs[i].cpu().numpy())
 
     print(f"Average PSNR: {np.array(psnrs_np).mean()}")
+    total_time = time() - start_time
+    print(f'消耗时间: {total_time}')
+    print(f'FPS: {len(data_set)/total_time}')
 
     data_set.full_images = saved_full_images
 

@@ -235,8 +235,8 @@ class ViewCellDataset(Dataset):
         self.directions = torch.tensor(npdirs.flatten().reshape(-1, 3), device=self.device, dtype=torch.float32)
 
     def scale_image(self, image):
-        return cv2.resize(image, (image.shape[0] // self.scale,
-                                  image.shape[1] // self.scale), interpolation=cv2.INTER_AREA)
+        return cv2.resize(image, (image.shape[1] // self.scale,
+                                  image.shape[0] // self.scale), interpolation=cv2.INTER_AREA)
 
     def load_color_image(self, file_name):
         color_image = imageio.imread(file_name).astype(np.float32)
@@ -256,7 +256,8 @@ class ViewCellDataset(Dataset):
             depth_image = np.flip(depth_image, 0)
 
         depth_only_max = depth_image.copy()
-        depth_only_max[depth_only_max != self.depth_ignore] = 0
+        # depth_only_max[depth_only_max != self.depth_ignore] = 0
+        depth_only_max[depth_only_max < self.depth_range[0]] = 0
         depth_only_max = self.scale_image(depth_only_max)
 
         if self.scale > 1:
@@ -275,7 +276,8 @@ class ViewCellDataset(Dataset):
             else:
                 depth_image = depth_image[0::self.scale, 0::self.scale]
 
-        depth_image[depth_only_max != 0] = self.depth_ignore
+        # depth_image[depth_only_max != 0] = self.depth_ignore
+        depth_image[depth_only_max == 0.] = self.depth_ignore
 
         if self.depth_distance_adjustment:
             depth_image = depth_image / self.base_ray_z[:, :]
@@ -284,7 +286,7 @@ class ViewCellDataset(Dataset):
 
         depth_image = self.depth_transform.from_world(
             depth_transforms.LinearTransform.to_world(depth_image, self.depth_range), self.depth_range)
-        depth_image[depth_only_max != 0] = 1.
+        depth_image[depth_only_max == 0.] = 1.
 
         depth_image = depth_image.reshape(1, self.h, self.w, 1)
 
@@ -447,15 +449,15 @@ class FullyLoadedViewCellDataset(ViewCellDataset):
                 DatasetKeyConstants.image_rotation: self.rotations,
                 DatasetKeyConstants.ray_directions: self.directions}
 
-        # we now call preprocess on all features to perform necessary preprocess steps
-        for feature_idx in range(len(self.train_config.f_in)):
-            f_in = self.train_config.f_in[feature_idx]
-            f_in.preprocess(data, self.device, self.config)
+        # # we now call preprocess on all features to perform necessary preprocess steps
+        # for feature_idx in range(len(self.train_config.f_in)):
+        #     f_in = self.train_config.f_in[feature_idx]
+        #     f_in.preprocess(data, self.device, self.config)
 
-            self.depth_images = data[DatasetKeyConstants.depth_image_full]
+        #     self.depth_images = data[DatasetKeyConstants.depth_image_full]
 
-            f_out = self.train_config.f_out[feature_idx]
-            f_out.preprocess(data, self.device, self.config)
+        #     f_out = self.train_config.f_out[feature_idx]
+        #     f_out.preprocess(data, self.device, self.config)
 
     def __getitem__(self, index):
         random_sample_indices = self.get_random_sample_indices(self.device)
